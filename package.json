@@ -1,7 +1,7 @@
 {
   "name": "@liqd-js/jwt",
   "description": "JSON Web Token",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "author": "radixxko",
   "license": "MIT",
   "main": "lib/jwt.js",

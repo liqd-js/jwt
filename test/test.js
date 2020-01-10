@@ -14,7 +14,7 @@ const ALGORITHMS =
     RS384:
     {
         key: fs.readFileSync( __dirname + '/keys/rsa.2048.key' ),
-        pub: fs.readFileSync( __dirname + '/keys/rsa.2048.pub' )
+        //pub: fs.readFileSync( __dirname + '/keys/rsa.2048.pub' )
     },
     RS256:
     {
@@ -29,7 +29,7 @@ const ALGORITHMS =
     ES384:
     {
         key: fs.readFileSync( __dirname + '/keys/ec.384.key' ),
-        pub: fs.readFileSync( __dirname + '/keys/ec.384.pub' )
+        //pub: fs.readFileSync( __dirname + '/keys/ec.384.pub' )
     },
     ES256:
     {
@@ -44,6 +44,8 @@ describe( 'Tests', ( done ) =>
     
     for( let algorithm in ALGORITHMS )
     {
+        //if( algorithm !== 'ES512' ) continue;
+
         describe( algorithm, () =>
         {
             for( let file of files )

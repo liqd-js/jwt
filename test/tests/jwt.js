@@ -2,6 +2,11 @@ const assert = require('assert');
 
 const JWT = require('../../lib/jwt');
 
+function Random( min, max )
+{
+    return min + Math.floor( Math.random() * ( max - min + 1 ));
+}
+
 module.exports = function( algorithm, data )
 {
     let jwt;
@@ -13,18 +18,33 @@ module.exports = function( algorithm, data )
     
     it( 'should create ' + algorithm + ' JWT token', () =>
     {
-        let payload = { id: 123456 };
-        let token = jwt.create( payload );
+        for( let i = 0; i < 1000; ++i )
+        {
+            let payload = { id: Random( 1, Number.MAX_SAFE_INTEGER )};
+            let token = jwt.create( payload );
 
-        assert.ok( typeof token === 'string' && (/[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/).test( token ), 'Invalid JWT token' );
+            assert.ok( typeof token === 'string' && (/[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/).test( token ), 'Invalid JWT token' );
 
-        let parsed_token = jwt.parse( token );
+            let parsed_token = jwt.parse( token );
 
-        assert.ok( parsed_token.ok, 'Could not parse JWT token' );
-        assert.ok( parsed_token.header.typ === 'JWT', 'Invalid JWT token type' );
-        assert.ok( parsed_token.header.alg === algorithm, 'Invalid JWT token algorithm' );
-        assert.ok( parsed_token.remaining === Infinity, 'Invalid JWT token validity' );
-    });
+            assert.ok( parsed_token.ok, 'Could not parse JWT token' );
+            assert.ok( parsed_token.header.typ === 'JWT', 'Invalid JWT token type' );
+            assert.ok( parsed_token.header.alg === algorithm, 'Invalid JWT token algorithm' );
+            assert.ok( parsed_token.remaining === Infinity, 'Invalid JWT token validity' );
+
+            token = jwt.create( payload, algorithm );
+
+            assert.ok( typeof token === 'string' && (/[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/).test( token ), 'Invalid JWT token' );
+
+            parsed_token = jwt.parse( token );
+
+            assert.ok( parsed_token.ok, 'Could not parse JWT token' );
+            assert.ok( parsed_token.header.typ === 'JWT', 'Invalid JWT token type' );
+            assert.ok( parsed_token.header.alg === algorithm, 'Invalid JWT token algorithm' );
+            assert.ok( parsed_token.remaining === Infinity, 'Invalid JWT token validity' );
+        }
+    })
+    .timeout( 30000 );
 
     it( 'should not validate empty JWT token', () =>
     {
@@ -36,32 +56,49 @@ module.exports = function( algorithm, data )
             assert.ok( parsed_token.error === 'invalid', 'Mismatching JWT token error' );
         }
     });
-    
-    it( 'should not validate JWT token with invalid signature', () =>
+
+    it( 'should set JWT token headers', () =>
     {
         let payload = { id: 123456 };
-        let token = jwt.create( payload );
+        let header = { foo: 'bar', typ: undefined };
+        let token = jwt.create( payload, { header });
         let parsed_token = jwt.parse( token );
 
         assert.ok( typeof token === 'string' && (/[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/).test( token ), 'Invalid JWT token' );
         assert.ok( parsed_token.ok, 'Could not parse JWT token' );
-
-        parsed_token = jwt.parse( token.replace(/\.([^.]+)$/,( _, sgn ) => '.' + sgn.split('').reverse().join('')));
-
-        assert.ok( !parsed_token.ok, 'Validated invalid token' );
-        assert.ok( parsed_token.error === 'unauthorized', 'Bad error on token' );
+        assert.ok( parsed_token.header.foo === header.foo, 'Invalid JWT token header' );
+        assert.ok( parsed_token.header.typ === header.typ, 'Invalid JWT token header' );
     });
+    
+    it( 'should not validate JWT token with invalid signature', () =>
+    {
+        for( let i = 0; i < 1000; ++i )
+        {
+            let payload = { id: Random( 1, Number.MAX_SAFE_INTEGER )};
+            let token = jwt.create( payload );
+            let parsed_token = jwt.parse( token );
+
+            assert.ok( typeof token === 'string' && (/[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/).test( token ), 'Invalid JWT token' );
+            assert.ok( parsed_token.ok, 'Could not parse JWT token' );
+
+            parsed_token = jwt.parse( token.replace(/\.([^.]+)$/,( _, sgn ) => '.' + sgn.split('').reverse().join('')));
+
+            assert.ok( !parsed_token.ok, 'Validated invalid token' );
+            assert.ok( parsed_token.error === 'unauthorized', 'Bad error on token' );
+        }
+    })
+    .timeout( 30000 );
     
     it( 'should follow expires claim on JWT token', () =>
     {
-        assert.ok( jwt.parse( jwt.create({ id: 123456 }, algorithm, { expires: undefined })).ok, 'Token not ok' );
-        assert.ok( jwt.parse( jwt.create({ id: 123456 }, algorithm, { expires: null })).ok, 'Token not ok' );
-        assert.ok( jwt.parse( jwt.create({ id: 123456 }, algorithm, { expires: '' })).ok, 'Token not ok' );
-        assert.ok( jwt.parse( jwt.create({ id: 123456 }, algorithm, { expires: 0 })).ok, 'Token not ok' );
+        assert.ok( jwt.parse( jwt.create({ id: 123456 }, { algorithm, expires: undefined })).ok, 'Token not ok' );
+        assert.ok( jwt.parse( jwt.create({ id: 123456 }, { algorithm, expires: null })).ok, 'Token not ok' );
+        assert.ok( jwt.parse( jwt.create({ id: 123456 }, { algorithm, expires: '' })).ok, 'Token not ok' );
+        assert.ok( jwt.parse( jwt.create({ id: 123456 }, { algorithm, expires: 0 })).ok, 'Token not ok' );
 
         for( let expires of [ 100, 946079999, Date.now() + 10000, new Date( Date.now() + 10000 ), '10s', '10m', '10h', '10d', '10w', '10y' ])
         {
-            let token = jwt.create({ id: 123456 }, algorithm, { expires });
+            let token = jwt.create({ id: 123456 }, { algorithm, expires });
             let parsed_token = jwt.parse( token );
 
             assert.ok( parsed_token.ok, 'Token not ok' );
@@ -85,7 +122,7 @@ module.exports = function( algorithm, data )
     {
         for( let starts of [ 100, 946079999, Date.now() + 10000, new Date( Date.now() + 10000 ), '10s', '10m', '10h', '10d', '10w', '10y' ])
         {
-            let token = jwt.create({ id: 123456 }, algorithm, { starts });
+            let token = jwt.create({ id: 123456 }, { algorithm, starts });
             let parsed_token = jwt.parse( token );
 
             assert.ok( !parsed_token.ok, 'Token not ok' );
